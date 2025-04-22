@@ -16,5 +16,5 @@ jobs:
       - name: 测试
         uses: ./
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.PR_TOKEN }}
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
