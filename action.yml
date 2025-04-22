@@ -34,7 +34,7 @@ runs:
     - name: Install codeaskcli from PyPI
       uses: threeal/pipx-install-action@v2.0.0
       with:
-      packages: codeaskcli
+        packages: codeaskcli
 
     - name: Run codeaskcli
       run: |
