@@ -1,108 +1,138 @@
-### 项目结构分析报告
+# 项目结构分析报告
 
-#### 一、项目架构概览
+## 一、项目架构概览
 
-**1. 主要模块和组件**
+### 1. 主要模块和组件
+| 模块名称           | 核心功能                                                                 |
+|--------------------|--------------------------------------------------------------------------|
+| CI/CD自动化模块    | 通过GitHub Action实现文档生成自动化流水线                                |
+| 文档生成引擎       | codeaskcli核心工具，执行代码分析与文档生成                               |
+| AI服务适配层       | 对接OpenAI/Anthropic等大模型服务，支持多厂商API接入                      |
+| 配置管理中心       | 通过YAML文件管理运行时参数（codeask.yml）和Action行为（action.yml）      |
+| PR自动化模块       | 自动创建文档更新PR，实现文档变更闭环管理                                 |
 
-├── 配置模块
-├── AI服务集成模块
-├── 代码分析引擎
-├── 文件处理模块
-├── 模板引擎模块
-└── CLI交互模块
-
-
-**2. 目录结构树形图**
-
-codeask-cli/
+### 2. 目录结构树形图
+bash
+.
+├── .github/
+│   └── workflows/
+│       └── action.yml       # GitHub Action定义文件
 ├── config/
-│   └── codeask.yaml       # 核心配置文件
+│   └── codeask.yml          # CLI工具配置文件
 ├── src/
-│   ├── cli.py             # CLI命令入口
-│   ├── analyzer/          # 代码分析引擎
-│   │   ├── core.py        # 并发分析控制器
-│   │   └── parser.py      # AI响应解析器
-│   ├── services/          # AI服务集成
-│   │   ├── openai.py
-│   │   ├── anthropic.py
-│   │   └── factory.py     # 服务工厂
-│   ├── utils/
-│   │   ├── filters.py     # 文件过滤处理器
-│   │   └── templates.py   # 提示词模板引擎
-└── outputs/               # 分析报告输出目录
+│   ├── cli/                 # CLI工具源代码
+│   └── docs_templates/      # 文档生成模板
+└── generated_docs/          # 自动生成的文档目录
 
 
-**3. 架构设计模式**
-采用 **分层架构** 与 **工厂模式** 组合设计：
-- **控制层**：CLI命令解析与执行流控制
-- **服务层**：AI服务工厂动态创建不同供应商实现
-- **数据层**：配置文件与模板的读取解析
-- **适配器模式**：统一不同AI服务的API调用接口
+### 3. 架构设计模式
+**混合架构模式**：
+- **管道过滤器模式**：在CI/CD流程中，通过串联Python环境配置→工具安装→文档生成→PR创建形成处理管道
+- **客户端-服务端模式**：CLI工具作为客户端，通过API与AI服务端交互
+- **插件架构**：通过配置文件支持多AI服务提供商动态切换
 
-**4. 分层架构图（Mermaid）**
+### 4. 分层关系图
 mermaid
 graph TD
-    A[CLI交互层] --> B[分析控制层]
-    B --> C[AI服务层]
-    C --> D[数据处理层]
-    D --> E[配置/模板]
-    style E fill:#f9f,stroke:#333
+    A[CI/CD层] -->|调用| B[应用服务层]
+    B -->|读取配置| C[配置管理层]
+    B -->|API调用| D[AI服务层]
+    C --> E[(codeask.yml)]
+    A --> F[(action.yml)]
+    
+    subgraph CI/CD层
+        A1[Python环境配置]
+        A2[CLI工具安装]
+        A3[PR自动化]
+    end
+    
+    subgraph 应用服务层
+        B1[文档生成引擎]
+        B2[并发分析器]
+        B3[模板渲染器]
+    end
+    
+    subgraph AI服务层
+        D1[OpenAI]
+        D2[Anthropic]
+        D3[Azure OpenAI]
+    end
 
 
-#### 二、模块依赖分析
+## 二、模块依赖分析
 
-**1. 模块依赖图（Mermaid）**
+### 1. 模块依赖关系图
 mermaid
 graph LR
-    CLI[CLI模块] --> ConfigLoader[配置加载器]
-    CLI --> Analyzer[分析引擎]
-    Analyzer -->|依赖| AIFactory[AI服务工厂]
-    Analyzer --> FileFilter[文件过滤器]
-    Analyzer --> TemplateEngine[模板引擎]
-    AIFactory --> OpenAIService[OpenAI实现]
-    AIFactory --> AnthropicService[Anthropic实现]
-    TemplateEngine -->|读取| YamlTemplates[YAML模板]
-
-
-**2. 关键模块职责说明**
-
-| 模块名称         | 职责描述                                                                 |
-|------------------|------------------------------------------------------------------------|
-| **配置加载器**   | 解析YAML配置，验证API密钥，处理环境变量注入                              |
-| **AI服务工厂**   | 根据provider配置动态创建对应AI服务实例，统一接口返回                      |
-| **分析引擎**     | 控制并发文件处理流程，协调过滤器与模板引擎，处理AI响应解析                |
-| **文件过滤器**   | 应用glob规则过滤目标文件，支持排除模式处理                               |
-| **模板引擎**     | 动态注入代码内容到预设模板，生成符合AI要求的提示词                        |
-| **响应解析器**   | 标准化AI返回结果，提取结构化数据，处理可能的异常响应格式                  |
-
-#### 三、核心流程说明
-mermaid
-sequenceDiagram
-    participant User as 用户
-    participant CLI as CLI工具
-    participant Analyzer as 分析引擎
-    participant AI as AI服务
+    action.yml --> codeaskcli
+    codeaskcli --> codeask.yml
+    codeaskcli --> AI-Service
+    codeask.yml --> Template-Engine
     
-    User->>CLI: 执行分析命令
-    CLI->>ConfigLoader: 加载配置
-    ConfigLoader-->>CLI: 返回配置对象
-    CLI->>Analyzer: 初始化分析器
-    Analyzer->>FileFilter: 获取目标文件列表
-    FileFilter-->>Analyzer: 返回过滤后文件
-    loop 并发处理文件
-        Analyzer->>TemplateEngine: 生成提示词
-        TemplateEngine-->>Analyzer: 返回完整prompt
-        Analyzer->>AI: 发送分析请求
-        AI-->>Analyzer: 返回原始结果
-        Analyzer->>Parser: 解析结构化数据
+    subgraph GitHubAction
+        action.yml
     end
-    Analyzer->>CLI: 生成最终报告
-    CLI->>User: 输出分析结果
+    
+    subgraph CLI工具
+        codeaskcli
+    end
+    
+    subgraph 配置系统
+        codeask.yml
+    end
+    
+    subgraph 外部服务
+        AI-Service([AI服务])
+        Template-Engine[模板引擎]
+    end
 
 
-#### 四、扩展能力设计
-1. **插件化扩展**：通过实现`BaseAIService`接口可快速新增AI服务支持
-2. **模板热更新**：修改YAML模板文件无需重新编译即可生效
-3. **动态过滤器**：支持用户自定义glob模式覆盖默认过滤规则
+### 2. 关键模块职责说明
 
-该架构通过清晰的层次划分和模块化设计，实现了代码分析工具的高扩展性和可维护性，各模块通过标准接口交互，符合单一职责原则。
+#### (1) CI/CD自动化模块
+- **输入参数处理**：接收API Key、工作目录等配置参数
+- **环境管理**：自动配置Python 3.12环境
+- **工具链管理**：通过pipx安装codeaskcli工具
+- **变更提交**：自动创建规范化PR（含documentation标签）
+
+#### (2) 文档生成引擎
+- **并发分析**：8线程并行处理YAML/YML文件
+- **智能过滤**：通过glob模式识别目标文件
+- **多模型支持**：动态切换OpenAI/Anthropic等AI服务
+- **报告生成**：应用single_page/summary模板生成结构化文档
+
+#### (3) 配置管理中心
+- **参数托管**：
+  yaml
+  api:
+    provider: openai       # 服务商选择
+    model: gpt-4-1106-preview  # 模型版本
+    temperature: 0.7       # 生成随机性控制
+  analyzer:
+    concurrency: 8         # 并发控制
+  
+
+#### (4) AI服务适配层
+- **统一接口**：封装不同AI服务的API调用差异
+- **容错机制**：自动切换备用服务商（如OpenAI故障时切换Anthropic）
+- **密钥管理**：安全注入API Key（通过GitHub Secrets）
+
+## 三、架构特性总结
+
+1. **双YAML驱动**：
+   - `action.yml`控制CI/CD流程
+   - `codeask.yml`管理文档生成策略
+   
+2. **弹性扩展能力**：
+   - 通过新增AI服务配置即可扩展支持新的大模型
+   - 模板系统支持自定义文档输出格式
+
+3. **安全合规性**：
+   - API密钥通过GitHub Secrets注入
+   - 支持私有化部署的AI服务（base_url配置项）
+
+4. **高效处理能力**：
+   - 并发分析提升处理速度
+   - 精确文件过滤避免无效扫描
+
+该架构通过清晰的层级划分和模块化设计，实现了从代码变更到文档更新的全自动流水线，在保证灵活性的同时提高了团队协作效率。
