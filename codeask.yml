@@ -45,7 +45,8 @@ analyzer:
 # 文件过滤器，指定要分析的文件
 filters:
   # 支持glob模式语法
-  - "**.yaml,**.yml"
+  - "**.yaml"
+  - "**.yml"
 
 # 提示词模板
 templates:
