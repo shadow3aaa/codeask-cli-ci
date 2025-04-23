@@ -1,46 +1,44 @@
 ### 1. 功能概述  
-该代码文件是一个 GitHub Action 的配置文件，用于在代码仓库的 CI/CD 流程中 **自动化生成代码文档**。核心功能是调用 `codeaskcli` 工具分析代码并生成文档，随后自动创建 Pull Request 提交更新。应用场景是团队协作开发中的文档自动化管理，关键模块包括 Python 环境配置、CLI 工具安装、文档生成和 PR 创建。
+该文件是 GitHub Actions 的配置文件，用于在持续集成（CI）流程中自动运行 `codeaskcli` 工具生成代码说明。其核心目标是通过集成多种AI服务（OpenAI/Claude/Azure/Gemini）的API密钥，在指定目录下生成代码文档或分析报告，适用于自动化代码文档生成场景。
 
 ---
 
 ### 2. 依赖项  
 - **外部 Actions**:
-  - `actions/setup-python@v5` (Python 环境配置)
-  - `threeal/pipx-install-action@v1.0.0` (安装 PyPI 包 `codeaskcli`)
-  - `peter-evans/create-pull-request@v7` (自动创建 PR)
-- **第三方服务**:
-  - OpenAI / Anthropic Claude / Azure OpenAI / Google Gemini（通过 API Key 调用 AI 服务生成文档）
+  - `actions/setup-python@v5`（Python环境搭建）
+  - `threeal/pipx-install-action@v1.0.0`（通过pipx安装Python包）
+- **工具依赖**:
+  - `codeaskcli`（核心代码文档生成工具）
+- **API服务**:
+  - OpenAI/Anthropic/Azure/Gemini（通过环境变量传递API密钥）
 
 ---
 
 ### 3. 代码结构分析  
-#### 关键配置模块
-1. **输入参数 (`inputs`)**:
-   - `working-directory`: 指定代码分析的工作目录
-   - `token`: GitHub 权限令牌
-   - 多个 API Key: 用于连接不同的 AI 服务
+#### 关键模块说明  
+- **输入定义**（`inputs`）:  
+  定义工作目录和多个AI服务的API密钥参数，支持用户自定义配置（如 `working-directory` 默认当前目录）。
 
-2. **执行流程 (`runs`)**:
-   mermaid
-   graph TD
-       A[Set up Python 3.12] --> B[Install codeaskcli via pipx]
-       B --> C[Run codeaskcli with API Keys]
-       C --> D[Create Pull Request]
-   
+- **执行流程**（`runs`）:  
+  采用 **复合步骤模式**（`composite`），包含三个核心步骤：
+  1. **Python环境初始化**: 通过 `setup-python` 安装指定版本的Python 3.12
+  2. **CLI工具安装**: 使用 `pipx-install-action` 全局安装 `codeaskcli`
+  3. **代码生成执行**: 设置工作目录和AI服务密钥，运行 `codeaskcli` 命令
 
-#### 核心步骤说明
-1. **Python 环境配置**:
-   - 确保使用 Python 3.12 版本
-2. **CLI 工具安装**:
-   - 通过 `pipx` 全局安装 `codeaskcli` 工具
-3. **文档生成**:
-   - 切换工作目录并注入多个 AI 服务的 API Key
-   - 调用 `codeaskcli` 分析代码生成文档
-4. **自动提交**:
-   - 创建名为 "Update code documentation" 的 PR
-   - 自动关联 `documentation` 标签并清理临时分支
+#### 流程图（Mermaid）  
+mermaid
+flowchart TD
+    A[开始] --> B[设置Python 3.12环境]
+    B --> C[安装codeaskcli]
+    C --> D[配置工作目录]
+    D --> E[注入AI API密钥]
+    E --> F[执行codeaskcli生成代码说明]
+    F --> G[结束]
+
 
 ---
 
-### 补充说明  
-此 Action 通过 **多AI服务支持** 实现灵活文档生成，开发者在仓库中配置后，可自动保持代码文档与代码变更同步，减少人工维护成本。
+### 技术亮点  
+- **多AI服务支持**: 通过环境变量动态注入不同AI服务的API密钥，实现灵活的后端切换
+- **隔离式安装**: 使用 `pipx` 全局安装CLI工具，避免Python环境依赖冲突
+- **目录可配置**: `working-directory` 参数允许在不同子目录中执行文档生成
